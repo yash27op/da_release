@@ -1,0 +1,52 @@
+apiVersion: triggers.tekton.dev/v1beta1
+kind: TriggerTemplate
+metadata:
+  name: cr-pipeline-template
+spec:
+  params:
+    - name: NEW_VERSION
+    - name: RELEASE_NOTES_LINK
+    - name: CATALOG_YAML
+    - name: ENV
+    - name: REGION
+    - name: VERSION
+      default: ""
+    - name: REPO_NAME
+    - name: GITHUB_URL
+    - name: GITHUB_ORG
+    - name: GITHUB_BRANCH
+    - name: OFFERING_NAME
+  resourcetemplates:
+    - apiVersion: tekton.dev/v1beta1
+      kind: PipelineRun
+      metadata:
+        generateName: cr-pipeline-run-
+      spec:
+        pipelineRef:
+          name: cr-main-pipeline
+        params:
+          - name: NEW_VERSION
+            value: $(tt.params.NEW_VERSION)
+          - name: RELEASE_NOTES_LINK
+            value: $(tt.params.RELEASE_NOTES_LINK)
+          - name: CATALOG_YAML
+            value: $(tt.params.CATALOG_YAML)
+          - name: ENV
+            value: $(tt.params.ENV)
+          - name: REGION
+            value: $(tt.params.REGION)
+          - name: VERSION
+            value: $(tt.params.VERSION)
+          - name: REPO_NAME
+            value: $(tt.params.REPO_NAME)
+          - name: GITHUB_URL
+            value: $(tt.params.GITHUB_URL)
+          - name: GITHUB_ORG
+            value: $(tt.params.GITHUB_ORG)
+          - name: GITHUB_BRANCH
+            value: $(tt.params.GITHUB_BRANCH)
+          - name: OFFERING_NAME
+            value: $(tt.params.OFFERING_NAME)
+        workspaces:
+          - name: shared-data
+            emptyDir: {}
