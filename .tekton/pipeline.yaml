@@ -1,0 +1,50 @@
+apiVersion: tekton.dev/v1beta1
+kind: Pipeline
+metadata:
+  name: cr-main-pipeline
+spec:
+  params:
+    - name: NEW_VERSION
+    - name: RELEASE_NOTES_LINK
+    - name: CATALOG_YAML
+    - name: ENV
+    - name: REGION
+    - name: VERSION
+      default: ""
+    - name: REPO_NAME
+    - name: GITHUB_URL
+    - name: GITHUB_ORG
+    - name: GITHUB_BRANCH
+    - name: OFFERING_NAME
+  workspaces:
+    - name: shared-data
+  tasks:
+    - name: run-cr-script
+      taskRef:
+        name: cr-task
+      params:
+        - name: NEW_VERSION
+          value: $(params.NEW_VERSION)
+        - name: RELEASE_NOTES_LINK
+          value: $(params.RELEASE_NOTES_LINK)
+        - name: CATALOG_YAML
+          value: $(params.CATALOG_YAML)
+        - name: ENV
+          value: $(params.ENV)
+        - name: REGION
+          value: $(params.REGION)
+        - name: VERSION
+          value: $(params.VERSION)
+        - name: REPO_NAME
+          value: $(params.REPO_NAME)
+        - name: GITHUB_URL
+          value: $(params.GITHUB_URL)
+        - name: GITHUB_ORG
+          value: $(params.GITHUB_ORG)
+        - name: GITHUB_BRANCH
+          value: $(params.GITHUB_BRANCH)
+        - name: OFFERING_NAME
+          value: $(params.OFFERING_NAME)
+      workspaces:
+        - name: shared-data
+          workspace: shared-data
