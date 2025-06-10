@@ -1,0 +1,152 @@
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: cr-task
+spec:
+  params:
+    - name: NEW_VERSION
+    - name: RELEASE_NOTES_LINK
+    - name: CATALOG_YAML
+    - name: ENV
+    - name: REGION
+    - name: VERSION
+    - name: REPO_NAME
+    - name: GITHUB_URL
+    - name: GITHUB_ORG
+    - name: GITHUB_BRANCH
+    - name: OFFERING_NAME
+  workspaces:
+    - name: shared-data
+  steps:
+    - name: da-release
+      image: "icr.io/goldeneye_images/goldeneye-ci-image:stable"
+      envFrom:
+        - configMapRef:
+            name: environment-properties
+        - configMapRef:
+            name: event-parameters
+        - secretRef:
+            name: secure-properties
+      env:
+        - name: PIPELINE_RUN_URL
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.annotations['devops.cloud.ibm.com/pipeline-run-url']
+      script: |
+        script: |
+        #!/usr/bin/env bash
+        set -e
+
+        
+        if [ -n "${eventBody}" ]; then
+          WEBHOOK_PARAMS=$(echo "${eventBody}" | jq '.')
+
+          repo_name=$(echo "${WEBHOOK_PARAMS}" | jq -r '."repo-name"')
+          if [ "${repo_name}" != "null" ]; then
+            export REPO_NAME=${repo_name}
+          fi
+          
+          region=$(echo "${WEBHOOK_PARAMS}" | jq -r '."region"')
+          if [ "${region}" != "null" ]; then
+            export REGION=${region}
+          fi
+          release_notes_link=$(echo "${WEBHOOK_PARAMS}" | jq -r '."release-notes-link"')
+          if [ "${release_notes_link}" != "null" ]; then
+            export RELEASE_NOTES_LINK=${release_notes_link}
+          fi
+          offering_name=$(echo "${WEBHOOK_PARAMS}" | jq -r '."offering-name"')
+          if [ "${offering_name}" != "null" ]; then
+            export OFFERING_NAME=${offering_name}
+          fi
+          env=$(echo "${WEBHOOK_PARAMS}" | jq -r '."env"')
+          if [ "${env}" != "null" ]; then
+            export ENV=${env}
+          fi
+          github_url=$(echo "${WEBHOOK_PARAMS}" | jq -r '."github-url"')
+          if [ "${github_url}" != "null" ]; then
+            export GITHUB_URL=${github_url}
+          fi
+
+          github_org=$(echo "${WEBHOOK_PARAMS}" | jq  -r '."github-org"')
+          if [ "${github_org}" != "null" ]; then
+            export GITHUB_ORG=${github_org}
+          fi
+
+          version=$(echo "${WEBHOOK_PARAMS}" | jq -r '."version"')
+          if [ "${version}" != "null" ]; then
+            export VERSION=${version}
+          fi
+
+          properties=$(echo "${WEBHOOK_PARAMS}" | jq -r '.properties')
+
+          len=$(echo "${WEBHOOK_PARAMS}" | jq -r '.properties | length')
+
+          i=0
+          while [ $i -lt $len ]; do
+            property_name=$(echo "${WEBHOOK_PARAMS}" | jq -r .properties[$i].name)
+            property_value=$(echo "${WEBHOOK_PARAMS}" | jq -r .properties[$i].value)
+            
+            if [ "${property_name}" == "cloud-api-key" ]; then
+              export CLOUD_API_KEY=${property_value}
+            fi
+            i=$((i + 1))
+          done
+        fi
+        # Validate required params
+        # if [ -z "${REPO_NAME}" ] || [ -z "${OFFERING_NAME}" ]; then
+        #   echo "Missing one of the required params. repo-name and offering-name are both required."
+        #   exit 1
+        # fi
+        #  # Clone Release repo
+        # if [ -z "${OPERATIONS_BRANCH}" ]; then
+        #   branch="master"
+        # else
+        #   branch="${OPERATIONS_BRANCH}"
+        # fi
+        branch="main"
+        
+        git clone -q -b "${branch}" "https://username:${GH_TOKEN}@github.ibm.com/GoldenEyeIndianSquad/da-release-pipeline.git"
+
+        # Copy required files to current dir
+        cp da-release-pipeline/scripts/release.sh .
+        rm -rf da-release-pipeline
+
+        
+        chmod +x release.sh
+        ./release.sh
+
+        # generate args for script
+        cmd=(./release.sh "--repo_name=${REPO_NAME}" "--offering_name=${OFFERING_NAME}")
+        version="latest"
+        if [ -n "${VERSION}" ]; then
+          cmd+=( "--version=${VERSION}")
+          version="${VERSION}"
+        fi
+        if [ -n "${GITHUB_URL}" ]; then
+          cmd+=( "--github_url=${GITHUB_URL}")
+        fi
+        if [ -n "${GITHUB_ORG}" ]; then
+          cmd+=( "--github_org=${GITHUB_ORG}")
+        fi
+        if [ -n "${CATALOG_YAML}" ]; then
+          cmd+=( "--catalog_yaml=${CATALOG_YAML}")
+        fi
+        if [ -n "${GITHUB_BRANCH}" ]; then
+          cmd+=( "--github_branch=${GITHUB_BRANCH}")
+        fi
+        if [ "${GITHUB_URL}" == "github.ibm.com" ]; then
+          export GH_TOKEN="${GH_TOKEN}"
+        fi
+
+        # Execute release script
+        echo "Executing command: ${cmd[*]}"
+        exit_code=0
+        "${cmd[@]}" || exit_code=$?
+
+        # # Create GIT issue if pipeline fails
+        # if [ ${CREATE_GIT_ISSUE_ON_FAILURE} == "true" ]; then
+        #   if [ ${exit_code} -ne 0 ]; then
+        #     ./create-git-issue.sh "${REPO_NAME}" "${OFFERING_NAME}" "${VERSION}" 
+        #   fi
+        # fi
+        exit $exit_code
