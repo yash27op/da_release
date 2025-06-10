@@ -1,0 +1,28 @@
+apiVersion: triggers.tekton.dev/v1beta1
+kind: TriggerBinding
+metadata:
+  name: cr-pipeline-binding
+spec:
+  params:
+    - name: NEW_VERSION
+      value: "$(body.new_version)"
+    - name: RELEASE_NOTES_LINK
+      value: "$(body.release_notes_link)"
+    - name: CATALOG_YAML
+      value: "$(body.CATALOG_YAML)"
+    - name: ENV
+      value: "$(body.ENV)"
+    - name: REGION
+      value: "$(body.region)"
+    - name: REPO_NAME
+      value: "$(body.REPO_NAME)"
+    - name: GITHUB_BRANCH
+      value: "$(body.GITHUB_BRANCH)"
+    - name: OFFERING_NAME
+      value: "$(body.offering_name)"
+    - name: VERSION
+      value: "$(body.version)"
+    - name: GITHUB_URL
+      value: "$(body.GITHUB_URL)"
+    - name: GITHUB_ORG
+      value: "$(body.GITHUB_ORG)"
